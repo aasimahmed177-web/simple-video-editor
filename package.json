@@ -1,0 +1,41 @@
+{
+  "name": "simple-chatgpt-claude-video-editor",
+  "version": "0.1.0",
+  "description": "An unofficial, local-first visual editor for Remotion compositions.",
+  "repository": {"type": "git", "url": "git+https://github.com/adonis-cyril/simple-chatgpt-claude-video-editor.git"},
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "@remotion/cli": "4.0.513",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.513",
+    "@remotion/player": "4.0.513"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.513",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@types/web": "0.0.166",
+    "eslint": "9.39.5",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3",
+    "@vitejs/plugin-react": "5.1.1",
+    "vite": "7.3.6",
+    "vitest": "4.1.11"
+  },
+  "scripts": {
+    "dev": "remotion studio",
+    "edit": "vite --host 127.0.0.1",
+    "build": "vite build && remotion bundle",
+    "render": "remotion render src/index.ts SimpleEditorDemo out/simple-editor-demo.mp4",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src vite.config.ts",
+    "check": "npm run typecheck && npm run lint && npm test && npm run build"
+  },
+  "sideEffects": [
+    "*.css"
+  ]
+}

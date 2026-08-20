@@ -1,0 +1,15 @@
+node_modules
+dist
+build
+.DS_Store
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+coverage
+
+# Ignore the output video from Git but not videos you import into src/.
+out

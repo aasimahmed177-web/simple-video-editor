@@ -1,0 +1,14 @@
+import fs from "node:fs";
+import path from "node:path";
+import {defineConfig,type Plugin} from "vite";
+import react from "@vitejs/plugin-react";
+
+const readBody=async(req:import("node:http").IncomingMessage)=>{const chunks:Buffer[]=[];for await(const chunk of req)chunks.push(Buffer.from(chunk));return Buffer.concat(chunks).toString("utf8")};
+const json=(res:import("node:http").ServerResponse,value:unknown,status=200)=>{res.statusCode=status;res.setHeader("content-type","application/json");res.end(JSON.stringify(value));};
+const editorApi=():Plugin=>({name:"simple-editor-local-api",configureServer(server){
+  const stateFile=path.resolve("src/editor-state.json"); const commentsFile=path.resolve("src/editor-comments.json"); const uploads=path.resolve("public/uploads");
+  server.middlewares.use("/api/state",async(req,res)=>{if(req.method!=="POST")return json(res,{error:"Method not allowed"},405);try{const value=JSON.parse(await readBody(req));fs.writeFileSync(stateFile,JSON.stringify(value,null,2)+"\n");json(res,{ok:true});}catch(error){json(res,{error:String(error)},400);}});
+  server.middlewares.use("/api/comments",async(req,res)=>{try{const current=JSON.parse(fs.readFileSync(commentsFile,"utf8"));if(req.method==="GET")return json(res,current);if(req.method!=="POST")return json(res,{error:"Method not allowed"},405);const body=JSON.parse(await readBody(req));const next=body.action==="add"?[...current,body.comment]:body.action==="delete"?current.filter((item:{id:string})=>item.id!==body.id):current;fs.writeFileSync(commentsFile,JSON.stringify(next,null,2)+"\n");json(res,next);}catch(error){json(res,{error:String(error)},400);}});
+  server.middlewares.use("/api/upload",async(req,res)=>{if(req.method!=="POST")return json(res,{error:"Method not allowed"},405);try{const body=JSON.parse(await readBody(req));const match=/^data:(image\/(?:png|jpeg|webp|svg\+xml));base64,(.+)$/.exec(body.dataUrl);if(!match)return json(res,{error:"Use PNG, JPEG, WebP, or SVG"},400);const bytes=Buffer.from(match[2],"base64");if(bytes.length>8_000_000)return json(res,{error:"Image must be under 8 MB"},400);fs.mkdirSync(uploads,{recursive:true});const extension={"image/png":"png","image/jpeg":"jpg","image/webp":"webp","image/svg+xml":"svg"}[match[1]];const safeId=String(body.id).replace(/[^a-z0-9-]/gi,"-");const filename=`${safeId}-${Date.now()}.${extension}`;fs.writeFileSync(path.join(uploads,filename),bytes);json(res,{path:`/uploads/${filename}`});}catch(error){json(res,{error:String(error)},400);}});
+}});
+export default defineConfig({plugins:[react(),editorApi()],server:{watch:{ignored:["**/src/editor-state.json","**/src/editor-comments.json","**/public/uploads/**"]}},build:{rollupOptions:{input:"editor.html"}}});
