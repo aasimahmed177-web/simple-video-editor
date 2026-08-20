@@ -6,12 +6,15 @@ This community project is not affiliated with or endorsed by OpenAI, Anthropic, 
 
 ## What it does
 
-- Select and drag exposed elements on the video canvas.
+- Select and drag exposed elements on the video canvas. Dragged positions save when released.
 - Change position, size, rotation, and opacity.
 - Edit text and colors.
 - Replace images with local files.
 - Hide, restore, reset, and undo changes.
-- Add frame-linked review comments.
+- Double-click empty space for a frame-linked comment dialogue.
+- Double-click an element for a floating, movable, resizable control and comment card.
+- Show saved comments as numbered blue pins during their saved second.
+- Edit, jump to, delete, or copy all comments with time, frame, scene, element, X, and Y details.
 - Save changes to JSON in the project.
 - Use the same saved state in the editor preview and Remotion render.
 
@@ -35,7 +38,7 @@ Run Remotion Studio with `npm run dev`. Render the neutral demo with `npm run re
 3. Pass the saved `EditorState` to your composition.
 4. Keep `editMode` false in clean renders.
 
-Saved edits live in `src/editor-state.json`. Review notes live in `src/editor-comments.json`. Replacement images are written to `public/uploads/`.
+Saved edits live in `src/editor-state.json`. Review notes live in `src/editor-comments.json`. Public scene names and frame ranges live in `src/editor-config.ts`. Replacement images are written to `public/uploads/`.
 
 The local Vite API writes files on your computer. It has no authentication and is for local development only. Do not expose the editor server to the public internet.
 
