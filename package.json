@@ -1,41 +1,61 @@
 {
   "name": "simple-chatgpt-claude-video-editor",
   "version": "0.1.0",
-  "description": "An unofficial, local-first visual editor for Remotion compositions.",
-  "repository": {"type": "git", "url": "git+https://github.com/adonis-cyril/simple-chatgpt-claude-video-editor.git"},
+  "description": "Local Adscade ad editing with English transcription, subtitle review, brand presets, and square/vertical exports.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aasimahmed177-web/simple-video-editor.git"
+  },
   "license": "MIT",
   "private": false,
   "dependencies": {
+    "@ffprobe-installer/ffprobe": "2.1.2",
+    "@remotion/bundler": "4.0.513",
     "@remotion/cli": "4.0.513",
+    "@remotion/install-whisper-cpp": "4.0.513",
+    "@remotion/player": "4.0.513",
+    "@remotion/renderer": "4.0.513",
+    "dictionary-en": "4.0.0",
+    "ffmpeg-static": "5.3.0",
+    "nspell": "2.1.5",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "remotion": "4.0.513",
-    "@remotion/player": "4.0.513"
+    "zod": "4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@remotion/eslint-config-flat": "4.0.513",
     "@types/node": "24.10.1",
+    "@types/nspell": "2.1.6",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@types/web": "0.0.166",
+    "@vitejs/plugin-react": "5.1.1",
     "eslint": "9.39.5",
     "prettier": "3.8.1",
+    "tsx": "4.23.15",
     "typescript": "5.9.3",
-    "@vitejs/plugin-react": "5.1.1",
     "vite": "7.3.6",
     "vitest": "4.1.11"
   },
   "scripts": {
     "dev": "remotion studio",
-    "edit": "vite --host 127.0.0.1",
+    "edit": "vite --host 127.0.0.1 --open /ads.html",
     "build": "vite build && remotion bundle",
     "render": "remotion render src/index.ts SimpleEditorDemo out/simple-editor-demo.mp4",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src vite.config.ts",
-    "check": "npm run typecheck && npm run lint && npm test && npm run build"
+    "lint": "eslint src server scripts vite.config.ts",
+    "check": "npm run typecheck && npm run lint && npm test && npm run build",
+    "setup:transcription": "tsx scripts/setup-transcription.ts",
+    "test:e2e": "playwright test"
   },
   "sideEffects": [
     "*.css"
-  ]
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  }
 }
