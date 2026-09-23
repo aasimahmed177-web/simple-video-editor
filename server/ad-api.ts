@@ -11,6 +11,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import ffmpeg from "ffmpeg-static";
 import ffprobe from "@ffprobe-installer/ffprobe";
+import { startRenderServer } from "./render-server";
+import { muxProjectAudio } from "./render-audio";
 import { transcribe, toCaptions } from "@remotion/install-whisper-cpp";
 import { bundle } from "@remotion/bundler";
 import {
@@ -312,6 +314,7 @@ const runTranscription = async (p: Project, job: Job, signal: AbortSignal) => {
   )
     throw new Error("Run npm run setup:transcription first, then try again.");
   if (
+    !p.voiceId &&
     !p.clips.some(
       (c) => c.volume > 0 && p.media.find((m) => m.id === c.mediaId)?.hasAudio,
     )
@@ -322,14 +325,24 @@ const runTranscription = async (p: Project, job: Job, signal: AbortSignal) => {
   const temp = await fsp.mkdtemp(path.join(os.tmpdir(), "adscade-transcribe-"));
   try {
     const parts: string[] = [];
-    for (let i = 0; i < p.clips.length; i++) {
+    const voiceClips = p.voiceId
+      ? [
+          {
+            mediaId: p.voiceId,
+            start: 0,
+            end: durationFrames(p) / FPS,
+            volume: 1,
+          },
+        ]
+      : p.clips;
+    for (let i = 0; i < voiceClips.length; i++) {
       if (signal.aborted) throw new Error("Cancelled");
-      const clip = p.clips[i],
+      const clip = voiceClips[i],
         media = p.media.find((m) => m.id === clip.mediaId)!;
       const duration = clipFrames(clip) / FPS;
       const part = path.join(temp, `part-${i}.wav`);
       parts.push(part);
-      job.message = `Preparing clip ${i + 1} of ${p.clips.length}`;
+      job.message = `Preparing voice ${i + 1} of ${voiceClips.length}`;
       const input =
         media.hasAudio && clip.volume > 0
           ? [
@@ -411,7 +424,6 @@ const runExport = async (
   p: Project,
   job: Job,
   signal: AbortSignal,
-  mediaBase: string,
   requested: ("square" | "vertical")[],
 ) => {
   const issues = reviewIssues(p);
@@ -426,42 +438,80 @@ const runExport = async (
   const { cancelSignal, cancel } = makeCancelSignal();
   signal.addEventListener("abort", cancel, { once: true });
   const created: string[] = [];
+  let mediaServer: Awaited<ReturnType<typeof startRenderServer>> | undefined;
   try {
     job.message = "Preparing video renderer";
-    const serveUrl = await bundle({
+    const bundleDir = await bundle({
       entryPoint: path.resolve("src/index.ts"),
       outDir: path.join(temp, "bundle"),
-      symlinkPublicDir: true,
+      symlinkPublicDir: false,
     });
     if (signal.aborted) throw new Error("Cancelled");
+    // Browser audio needs same-origin media. Stage read-only links in this
+    // private render bundle instead of weakening the local API's origin guard.
+    const renderMediaDir = path.join(temp, "bundle", "api", "ads", "media");
+    await fsp.mkdir(renderMediaDir, { recursive: true });
+    const usedIds = new Set([
+      ...p.clips.map((c) => c.mediaId),
+      p.voiceId,
+      p.musicId,
+    ]);
+    for (const media of p.media.filter((m) => usedIds.has(m.id))) {
+      const source = path.join(folders.media, media.file);
+      const destination = path.join(renderMediaDir, media.file);
+      await fsp
+        .link(source, destination)
+        .catch(async (error: NodeJS.ErrnoException) => {
+          if (
+            error.code !== "EXDEV" &&
+            error.code !== "EPERM" &&
+            error.code !== "ENOTSUP"
+          )
+            throw error;
+          await fsp.copyFile(source, destination);
+        });
+    }
+    mediaServer = await startRenderServer(bundleDir);
+    const serveUrl = mediaServer.url;
     for (let i = 0; i < requested.length; i++) {
       const format = requested[i];
       const composition = await selectComposition({
         serveUrl,
         id: format === "square" ? "AdSquare" : "AdVertical",
-        inputProps: { project: p, mediaBase },
+        inputProps: { project: p, mediaBase: "" },
       });
       const filename = `${prefix}-${format === "square" ? "1x1" : "9x16"}-${p.exportResolution}p.mp4`;
       created.push(filename);
+      const picturePath = path.join(temp, `${format}-picture.mp4`);
       await renderMedia({
         serveUrl,
         composition,
-        inputProps: { project: p, mediaBase },
+        inputProps: { project: p, mediaBase: "" },
         codec: "h264",
-        audioCodec: "aac",
+        muted: true,
         pixelFormat: "yuv420p",
         crf: 18,
         scale: Number(p.exportResolution) / 1080,
-        outputLocation: path.join(folders.exports, filename),
+        outputLocation: picturePath,
         concurrency: 2,
         offthreadVideoThreads: 2,
         offthreadVideoCacheSizeInBytes: 512 * 1024 * 1024,
         cancelSignal,
         onProgress: ({ progress }) => {
-          job.progress = (i + progress) / requested.length;
+          job.progress = (i + progress * 0.95) / requested.length;
           job.message = `Rendering ${format === "square" ? "1:1 Feed" : "9:16 Story"} · ${Math.round(progress * 100)}%`;
         },
       });
+      job.message = "Mixing voice and music";
+      await muxProjectAudio({
+        project: p,
+        videoPath: picturePath,
+        outputPath: path.join(folders.exports, filename),
+        tempDir: temp,
+        mediaDir: folders.media,
+        signal,
+      });
+      job.progress = (i + 1) / requested.length;
     }
     if (p.subtitlesEnabled && p.captions.length) {
       const srt = `${prefix}.srt`;
@@ -486,6 +536,7 @@ const runExport = async (
     throw error;
   } finally {
     signal.removeEventListener("abort", cancel);
+    await mediaServer?.close();
     await fsp.rm(temp, { recursive: true, force: true });
   }
 };
@@ -588,13 +639,15 @@ export const adApi = (): Plugin => ({
         if (req.method === "GET" && route.startsWith("/projects/"))
           return json(
             res,
-            JSON.parse(
-              fs.readFileSync(
-                path.join(
-                  folders.projects,
-                  `${safeName(route.slice(10))}.json`,
+            projectSchema.parse(
+              JSON.parse(
+                fs.readFileSync(
+                  path.join(
+                    folders.projects,
+                    `${safeName(route.slice(10))}.json`,
+                  ),
+                  "utf8",
                 ),
-                "utf8",
               ),
             ),
           );
@@ -699,17 +752,9 @@ export const adApi = (): Plugin => ({
           const work =
             job.type === "transcribe"
               ? runTranscription(p, job, abort.signal)
-              : runExport(
-                  p,
-                  job,
-                  abort.signal,
-                  `http://127.0.0.1:${address.port}`,
-                  [
-                    ...new Set(
-                      body.formats ?? (["square", "vertical"] as const),
-                    ),
-                  ],
-                );
+              : runExport(p, job, abort.signal, [
+                  ...new Set(body.formats ?? (["square", "vertical"] as const)),
+                ]);
           void work
             .then(() => {
               job.status = "done";

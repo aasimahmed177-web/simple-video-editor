@@ -10,6 +10,13 @@ import {
 } from "remotion";
 import { clipFrames, type Project } from "./model";
 import "./fonts.css";
+import {
+  MotionCallout,
+  MotionCaption,
+  MotionCta,
+  MotionHook,
+  MotionVideo,
+} from "./AdMotion";
 
 export type AdProps = {
   project: Project;
@@ -25,6 +32,10 @@ export const AdComposition: React.FC<AdProps> = ({
   const { fps, width, height, durationInFrames } = useVideoConfig();
   const time = frame / fps,
     brand = project.brand;
+  const adMotion = project.motionStyle === "ad";
+  const callout = adMotion
+    ? project.callouts.find((c) => time >= c.start && time < c.end)
+    : undefined;
   const subtitle = project.subtitlesEnabled
     ? project.captions.find((c) => time >= c.start && time < c.end)
     : undefined;
@@ -45,32 +56,51 @@ export const AdComposition: React.FC<AdProps> = ({
         fontFamily: brand.font,
       }}
     >
-      {project.clips.map((clip) => {
+      {project.clips.map((clip, index) => {
         const from = offset;
         const length = clipFrames(clip);
         const sideways = clip.rotation === 90 || clip.rotation === 270;
         offset += length;
         return (
           <Sequence key={clip.id} from={from} durationInFrames={length}>
-            <OffthreadVideo
-              src={mediaUrl(clip.mediaId)}
-              trimBefore={Math.round(clip.start * fps)}
-              trimAfter={Math.round(clip.start * fps) + length}
-              volume={clip.volume}
-              style={{
-                position: "absolute",
-                width: sideways ? height : width,
-                height: sideways ? width : height,
-                left: sideways ? (width - height) / 2 : 0,
-                top: sideways ? (height - width) / 2 : 0,
-                transform: `rotate(${clip.rotation ?? 0}deg)`,
-                objectFit: clip.fit,
-                objectPosition: `${clip.x}% ${clip.y}%`,
-              }}
-            />
+            {adMotion ? (
+              <MotionVideo
+                clip={project.voiceId ? { ...clip, volume: 0 } : clip}
+                index={index}
+                length={length}
+                src={mediaUrl(clip.mediaId)}
+              />
+            ) : (
+              <OffthreadVideo
+                src={mediaUrl(clip.mediaId)}
+                trimBefore={Math.round(clip.start * fps)}
+                trimAfter={Math.round(clip.start * fps) + length}
+                volume={project.voiceId ? 0 : clip.volume}
+                style={{
+                  position: "absolute",
+                  width: sideways ? height : width,
+                  height: sideways ? width : height,
+                  left: sideways ? (width - height) / 2 : 0,
+                  top: sideways ? (height - width) / 2 : 0,
+                  transform: `rotate(${clip.rotation ?? 0}deg)`,
+                  objectFit: clip.fit,
+                  objectPosition: `${clip.x}% ${clip.y}%`,
+                }}
+              />
+            )}
           </Sequence>
         );
       })}
+      {adMotion ? (
+        <AbsoluteFill
+          style={{
+            pointerEvents: "none",
+            background:
+              "linear-gradient(180deg, #00000020 0%, transparent 27%, transparent 55%, #00000030 100%)",
+          }}
+        />
+      ) : null}
+      {project.voiceId ? <Audio src={mediaUrl(project.voiceId)} /> : null}
       {project.musicId ? (
         <Audio
           src={mediaUrl(project.musicId)}
@@ -102,7 +132,26 @@ export const AdComposition: React.FC<AdProps> = ({
           <span style={{ fontSize: 34, fontWeight: 600 }}>{brand.name}</span>
         </div>
       ) : null}
-      {project.hook && time < project.hookSeconds ? (
+      {adMotion &&
+      project.hook &&
+      time < project.hookSeconds &&
+      !ctaVisible &&
+      !callout ? (
+        <MotionHook project={project} />
+      ) : null}
+      {callout && !ctaVisible ? (
+        <MotionCallout callout={callout} brand={brand} time={time} />
+      ) : null}
+      {adMotion && subtitle ? (
+        <MotionCaption
+          caption={subtitle}
+          brand={brand}
+          time={time}
+          ctaVisible={Boolean(ctaVisible)}
+        />
+      ) : null}
+      {adMotion && ctaVisible ? <MotionCta project={project} /> : null}
+      {!adMotion && project.hook && time < project.hookSeconds ? (
         <div
           style={{
             position: "absolute",
@@ -121,7 +170,7 @@ export const AdComposition: React.FC<AdProps> = ({
           {project.hook}
         </div>
       ) : null}
-      {subtitle ? (
+      {!adMotion && subtitle ? (
         <div
           style={{
             position: "absolute",
@@ -155,7 +204,7 @@ export const AdComposition: React.FC<AdProps> = ({
           </span>
         </div>
       ) : null}
-      {ctaVisible ? (
+      {!adMotion && ctaVisible ? (
         <div
           style={{
             position: "absolute",

@@ -17,6 +17,34 @@ test("local API rejects cross-site writes and invalid project paths", async ({
   );
 });
 
+test("legacy project loads receive safe motion defaults and media keeps origin protection", async ({
+  request,
+}) => {
+  const p = newProject();
+  const file = `data/projects/${p.id}.json`;
+  const old = {
+    ...p,
+    motionStyle: undefined,
+    voiceId: undefined,
+    callouts: undefined,
+  };
+  fs.writeFileSync(file, JSON.stringify(old));
+  try {
+    const loaded = await (
+      await request.get(`/api/ads/projects/${p.id}`)
+    ).json();
+    expect(loaded.motionStyle).toBe("clean");
+    expect(loaded.voiceId).toBeNull();
+    expect(loaded.callouts).toEqual([]);
+    const response = await request.get("/api/ads/media/unknown.wav", {
+      headers: { origin: "http://localhost:3000" },
+    });
+    expect(response.status()).toBe(403);
+  } finally {
+    fs.unlinkSync(file);
+  }
+});
+
 test("saved brand settings are reused in new projects", async ({
   page,
   request,
@@ -79,6 +107,8 @@ test("import, spelling correction, timing review, save/reopen, and placement pre
   await expect(page.locator(".preview-frame.square")).toBeVisible();
   await page.getByLabel("Export resolution").selectOption("720");
   await page.getByLabel("Clip 1 rotation").selectOption("90");
+  await page.getByRole("button", { name: "Brand & text", exact: true }).click();
+  await page.getByLabel("Motion style", { exact: true }).selectOption("clean");
   await page.getByRole("button", { name: "Save project", exact: true }).click();
   await expect(page.getByText("Project saved on this computer")).toBeVisible();
   await page.reload();
@@ -91,6 +121,11 @@ test("import, spelling correction, timing review, save/reopen, and placement pre
   await expect(page.getByLabel("Reviewed", { exact: true })).toBeChecked();
   await expect(page.getByLabel("Export resolution")).toHaveValue("720");
   await expect(page.getByLabel("Clip 1 rotation")).toHaveValue("90");
+  await page.getByRole("button", { name: "Brand & text", exact: true }).click();
+  await expect(page.getByLabel("Motion style", { exact: true })).toHaveValue(
+    "clean",
+  );
+  await page.getByRole("button", { name: "Subtitles", exact: true }).click();
   await expect(page.locator(".preview-frame video")).toHaveCSS(
     "transform",
     "matrix(0, 1, -1, 0, 0, 0)",

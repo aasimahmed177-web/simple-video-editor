@@ -39,6 +39,61 @@ const fixture = () => {
   return p;
 };
 describe("ad editing timeline", () => {
+  it("keeps old projects static and validates prepared voice and word timing", () => {
+    const p = fixture();
+    const old = {
+      ...p,
+      motionStyle: undefined,
+      voiceId: undefined,
+      callouts: undefined,
+    };
+    const parsed = projectSchema.parse(old);
+    expect(parsed.motionStyle).toBe("clean");
+    expect(parsed.voiceId).toBeNull();
+    expect(parsed.callouts).toEqual([]);
+    p.voiceId = "missing";
+    expect(projectSchema.safeParse(p).success).toBe(false);
+    p.media.push({
+      id: "voice",
+      name: "Voice",
+      file: "voice.wav",
+      kind: "audio",
+      duration: 10,
+      width: 0,
+      height: 0,
+      hasAudio: true,
+    });
+    p.voiceId = "voice";
+    p.captions = [
+      {
+        id: "words",
+        start: 0,
+        end: 2,
+        text: "Hello world",
+        reviewed: true,
+        words: [
+          { text: "Hello", start: 0.1, end: 0.8 },
+          { text: "world", start: 0.9, end: 1.8 },
+        ],
+      },
+    ];
+    expect(projectSchema.safeParse(p).success).toBe(true);
+    p.captions[0].words![1].start = 0.5;
+    expect(projectSchema.safeParse(p).success).toBe(false);
+  });
+  it("rejects offer text beyond the cut", () => {
+    const p = fixture();
+    p.callouts = [
+      {
+        id: "offer",
+        start: 8,
+        end: 12,
+        text: "20 videos",
+        kicker: "PER MONTH",
+      },
+    ];
+    expect(projectSchema.safeParse(p).success).toBe(false);
+  });
   it("opens older clips upright as saved and rejects unsupported rotations", () => {
     const p = fixture();
     const old = { ...p, clips: [{ ...p.clips[0], rotation: undefined }] };

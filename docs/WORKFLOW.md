@@ -15,10 +15,18 @@ The English `small.en` model is installed locally by `npm run setup:transcriptio
 5. Click **Transcribe this cut**. The app extracts the edited voice track, including silence for muted or silent clips, then generates English subtitles. Background music is excluded from transcription.
 6. Click **Check spelling**. The local English dictionary offers suggestions; accepted names can go in the brand dictionary. Click a line's play button, listen, edit the wording and start/end times, then mark it **Reviewed**. Automatic transcription can mishear names, numbers, accents, and claims. Dictionary checks cannot verify meaning.
 7. Fix overlapping subtitles or lines above 25 characters per second before export. Changing the cut resets subtitle review; transcribe again or check all timings and choose **Mark all reviewed**. Turning off subtitles is an explicit way to export without them.
-8. Under **Brand & text**, adjust the hook, logo, caption style, and final CTA. **Save as default brand** stores a reusable preset for new ads; **Apply saved brand** updates the current ad. Existing projects retain their own settings. Logo display is off by default.
+8. Under **Brand & text**, choose **Ad motion** for subtle shot push-ins, animated captions, offer text, and a compact animated CTA, or **Static** for the original layout. Adjust the hook, logo, caption style, and final CTA. **Save as default brand** stores a reusable preset for new ads; **Apply saved brand** updates the current ad. Existing projects retain their own settings. Logo display is off by default.
 9. **Save project**, choose a resolution (1080p recommended), then **Export both placements**. At the default resolution, downloads include 1080×1080 and 1080×1920 H.264/AAC MP4s, an SRT, and a JSON snapshot of the edit. Subtitles are burned into the video when enabled. Guides and editor controls are never rendered.
 
 The safe-area guide is a conservative working aid, not a guarantee for every Meta placement. Review both files in Ads Manager's placement preview before publishing. The square and vertical outputs share the same cut and subtitles; the crop changes with the canvas. This app does not upload or publish ads.
+
+## Finishing an edit
+
+Use short caption phrases and check each join against the voice waveform and the actual playback. Leave a small consonant handle; do not force pauses to meet an arbitrary duration. Speech timestamps from automatic transcription are approximate, especially around retakes and silence. Word highlights are only shown when aligned word timings match the caption text; changing the text or timing removes those highlights.
+
+Projects can include a prepared voice stem for centered, leveled dialogue and a separate music stem, so music remains independently adjustable. Changing the cut or clip voice volume clears the prepared voice track and returns to source audio. Offer callouts are cleared when the cut changes to prevent stale timing. Save a separate version before making substantial changes to a finished edit.
+
+Exports render the picture first, then build the audio on the same 30 fps cut boundaries and encode AAC once. This avoids an extra audio delay from intermediate AAC padding. The temporary render server binds to this computer only and serves only the assets used in that export.
 
 ## Large files
 
@@ -45,6 +53,8 @@ The studio is intended for one local editor at a time. Keep it bound to `127.0.0
 ## Verification
 
 `npm run check` runs type checking, lint, unit tests, and both builds. `npm run test:e2e` checks local API restrictions and the browser editing workflow. Install its browser with `npx playwright install chromium` once.
+
+`npx tsx scripts/verify-render-audio.ts` checks native audio export with synthetic sources: cut alignment, a prepared voice stem, looping music, and silence. It does not use private footage.
 
 To make the synthetic English fixture used by the browser and full integration checks on macOS:
 

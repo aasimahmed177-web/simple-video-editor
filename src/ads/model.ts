@@ -79,6 +79,16 @@ export const captionSchema = z
     end: seconds,
     text: z.string().min(1).max(240),
     reviewed: z.boolean(),
+    words: z
+      .array(
+        z.object({
+          text: z.string().min(1).max(60),
+          start: seconds,
+          end: seconds,
+        }),
+      )
+      .max(80)
+      .optional(),
   })
   .refine((c) => c.end > c.start, "Subtitle end must be after its start");
 export type Caption = z.infer<typeof captionSchema>;
@@ -93,6 +103,20 @@ export const projectSchema = z
     hook: z.string().max(120),
     hookSeconds: z.number().min(0).max(10),
     musicId: id.nullable(),
+    voiceId: id.nullable().default(null),
+    motionStyle: z.enum(["clean", "ad"]).default("clean"),
+    callouts: z
+      .array(
+        z.object({
+          id,
+          start: seconds,
+          end: seconds,
+          kicker: z.string().max(40),
+          text: z.string().min(1).max(60),
+        }),
+      )
+      .max(20)
+      .default([]),
     musicVolume: z.number().min(0).max(1),
     subtitlesEnabled: z.boolean(),
     updatedAt: z.string().max(40),
@@ -122,11 +146,36 @@ export const projectSchema = z
       (total, c) => total + clipFrames(c) / FPS,
       0,
     );
-    for (const caption of p.captions)
+    if (
+      p.voiceId &&
+      !p.media.some(
+        (m) =>
+          m.id === p.voiceId &&
+          m.kind === "audio" &&
+          m.duration >= duration - 0.05,
+      )
+    )
+      issue("The prepared voice track is missing or shorter than the cut.");
+    for (const callout of p.callouts)
+      if (callout.end <= callout.start || callout.end > duration + 0.05)
+        issue("Offer text must stay within the cut.");
+    for (const caption of p.captions) {
+      let wordEnd = caption.start;
+      for (const word of caption.words ?? []) {
+        if (
+          word.end <= word.start ||
+          word.start < wordEnd - 0.001 ||
+          word.start < caption.start ||
+          word.end > caption.end + 0.001
+        )
+          issue("Word highlights must follow the subtitle timing in order.");
+        wordEnd = word.end;
+      }
       if (caption.end > duration + 0.05)
         issue(
           "Subtitle extends past the cut. Adjust its timing or transcribe again.",
         );
+    }
   });
 export type Project = z.infer<typeof projectSchema>;
 export const clipFrames = (clip: Pick<Clip, "start" | "end">) =>
@@ -146,6 +195,9 @@ export const newProject = (brand = defaultBrand): Project => ({
   hook: "",
   hookSeconds: 3,
   musicId: null,
+  voiceId: null,
+  motionStyle: "ad",
+  callouts: [],
   musicVolume: 0.12,
   subtitlesEnabled: true,
   updatedAt: new Date().toISOString(),

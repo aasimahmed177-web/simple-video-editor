@@ -244,6 +244,7 @@ const Studio = () => {
         media: [...next.media, media],
         clips: media.kind === "video" ? [...next.clips, clip] : next.clips,
         musicId: media.kind === "audio" ? media.id : next.musicId,
+        voiceId: media.kind === "video" ? null : next.voiceId,
         timingReviewed: next.captions.length ? false : next.timingReviewed,
       };
       setProject(next);
@@ -261,10 +262,17 @@ const Studio = () => {
     update({
       ...project,
       clips,
+      voiceId: null,
+      callouts: [],
       timingReviewed: project.captions.length ? false : true,
       captions: project.captions
         .filter((c) => c.start < length)
-        .map((c) => ({ ...c, end: Math.min(c.end, length), reviewed: false })),
+        .map((c) => ({
+          ...c,
+          end: Math.min(c.end, length),
+          words: undefined,
+          reviewed: false,
+        })),
     });
   };
   const editClip = (id: string, patch: Partial<Clip>) => {
@@ -284,7 +292,12 @@ const Studio = () => {
       c.id === id ? { ...c, ...patch } : c,
     );
     if ("start" in patch || "end" in patch) changeClips(clips);
-    else update({ ...project, clips });
+    else
+      update({
+        ...project,
+        clips,
+        voiceId: "volume" in patch ? null : project.voiceId,
+      });
   };
   const changeCaption = (id: string, patch: Partial<Caption>) =>
     update({
@@ -294,6 +307,10 @@ const Studio = () => {
           ? {
               ...c,
               ...patch,
+              words:
+                "text" in patch || "start" in patch || "end" in patch
+                  ? undefined
+                  : c.words,
               reviewed: "reviewed" in patch ? patch.reviewed! : false,
             }
           : c,
@@ -1158,6 +1175,66 @@ const Studio = () => {
                   ),
                 )}
               </div>
+              <label>
+                Motion style
+                <select
+                  aria-label="Motion style"
+                  value={project.motionStyle ?? "clean"}
+                  onChange={(e) =>
+                    update({
+                      ...project,
+                      motionStyle: e.target.value as Project["motionStyle"],
+                    })
+                  }
+                >
+                  <option value="ad">
+                    Ad motion · push-ins and animated text
+                  </option>
+                  <option value="clean">Static · original layout</option>
+                </select>
+              </label>
+              {project.voiceId ? (
+                <p className="helper">
+                  Prepared voice track is active. Changing cuts or voice volume
+                  returns to the source audio.
+                </p>
+              ) : null}
+              {(project.callouts ?? []).map((callout, i) => (
+                <div key={callout.id}>
+                  <label>
+                    Offer text {i + 1}
+                    <input
+                      aria-label={`Offer text ${i + 1}`}
+                      maxLength={60}
+                      value={callout.text}
+                      onChange={(e) =>
+                        update({
+                          ...project,
+                          callouts: project.callouts.map((c) =>
+                            c.id === callout.id
+                              ? { ...c, text: e.target.value }
+                              : c,
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() =>
+                      update({
+                        ...project,
+                        callouts: project.callouts.filter(
+                          (c) => c.id !== callout.id,
+                        ),
+                      })
+                    }
+                  >
+                    Remove offer text
+                  </button>
+                </div>
+              ))}
               <label>
                 Subtitle font
                 <select
