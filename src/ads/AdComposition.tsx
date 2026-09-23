@@ -22,7 +22,7 @@ export const AdComposition: React.FC<AdProps> = ({
   preview = false,
 }) => {
   const frame = useCurrentFrame();
-  const { fps, height, durationInFrames } = useVideoConfig();
+  const { fps, width, height, durationInFrames } = useVideoConfig();
   const time = frame / fps,
     brand = project.brand;
   const subtitle = project.subtitlesEnabled
@@ -48,6 +48,7 @@ export const AdComposition: React.FC<AdProps> = ({
       {project.clips.map((clip) => {
         const from = offset;
         const length = clipFrames(clip);
+        const sideways = clip.rotation === 90 || clip.rotation === 270;
         offset += length;
         return (
           <Sequence key={clip.id} from={from} durationInFrames={length}>
@@ -57,8 +58,12 @@ export const AdComposition: React.FC<AdProps> = ({
               trimAfter={Math.round(clip.start * fps) + length}
               volume={clip.volume}
               style={{
-                width: "100%",
-                height: "100%",
+                position: "absolute",
+                width: sideways ? height : width,
+                height: sideways ? width : height,
+                left: sideways ? (width - height) / 2 : 0,
+                top: sideways ? (height - width) / 2 : 0,
+                transform: `rotate(${clip.rotation ?? 0}deg)`,
                 objectFit: clip.fit,
                 objectPosition: `${clip.x}% ${clip.y}%`,
               }}

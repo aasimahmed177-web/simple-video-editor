@@ -61,6 +61,9 @@ export const clipSchema = z
     end: seconds,
     volume: z.number().min(0).max(2),
     fit: z.enum(["cover", "contain"]),
+    rotation: z
+      .union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)])
+      .default(0),
     x: z.number().min(0).max(100),
     y: z.number().min(0).max(100),
   })

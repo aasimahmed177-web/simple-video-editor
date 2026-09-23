@@ -78,6 +78,7 @@ test("import, spelling correction, timing review, save/reopen, and placement pre
   await page.getByRole("button", { name: "1:1 · Feed", exact: true }).click();
   await expect(page.locator(".preview-frame.square")).toBeVisible();
   await page.getByLabel("Export resolution").selectOption("720");
+  await page.getByLabel("Clip 1 rotation").selectOption("90");
   await page.getByRole("button", { name: "Save project", exact: true }).click();
   await expect(page.getByText("Project saved on this computer")).toBeVisible();
   await page.reload();
@@ -89,6 +90,11 @@ test("import, spelling correction, timing review, save/reopen, and placement pre
   );
   await expect(page.getByLabel("Reviewed", { exact: true })).toBeChecked();
   await expect(page.getByLabel("Export resolution")).toHaveValue("720");
+  await expect(page.getByLabel("Clip 1 rotation")).toHaveValue("90");
+  await expect(page.locator(".preview-frame video")).toHaveCSS(
+    "transform",
+    "matrix(0, 1, -1, 0, 0, 0)",
+  );
   await page.getByLabel("Clip 1 start").fill("1");
   await expect(
     page.getByRole("button", { name: "Export both placements" }),

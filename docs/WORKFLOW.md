@@ -10,7 +10,7 @@ The English `small.en` model is installed locally by `npm run setup:transcriptio
 
 1. Choose **New ad**, name it, and import your video clips. MP4, MOV, WebM, and M4V are accepted (up to 5 GB per file, two hours of source duration).
 2. Use **In / Out** to keep the desired section of each clip. Reorder clips with the arrows. Seek in the preview and use **Split here** to divide a clip. Remove unwanted sections. All times are seconds; the output clock is 30 fps.
-3. Preview both **1:1 Feed** and **9:16 Story**. Choose fill/crop or fit the full source, and adjust the focal point with Crop X/Y. The same focal point is used in both versions.
+3. Preview both **1:1 Feed** and **9:16 Story**. Use each clip’s **Rotation** selector to turn sideways or upside-down footage upright; this affects both the preview and exports. Choose fill/crop or fit the full source, and adjust the focal point with Crop X/Y. The same focal point is used in both versions.
 4. Import an MP3, M4A, or WAV if you want music. Set its level separately from each clip's voice volume. Music loops with a short fade at the start and end. Use music licensed for your advertising use.
 5. Click **Transcribe this cut**. The app extracts the edited voice track, including silence for muted or silent clips, then generates English subtitles. Background music is excluded from transcription.
 6. Click **Check spelling**. The local English dictionary offers suggestions; accepted names can go in the brand dictionary. Click a line's play button, listen, edit the wording and start/end times, then mark it **Reviewed**. Automatic transcription can mishear names, numbers, accents, and claims. Dictionary checks cannot verify meaning.

@@ -231,6 +231,7 @@ const Studio = () => {
         end: Math.floor(media.duration * FPS) / FPS,
         volume: 1,
         fit: "cover",
+        rotation: 0,
         x: 50,
         y: 50,
       };
@@ -446,6 +447,7 @@ const Studio = () => {
                         end: Math.floor(m.duration * FPS) / FPS,
                         volume: 1,
                         fit: "cover",
+                        rotation: 0,
                         x: 50,
                         y: 50,
                       },
@@ -702,6 +704,25 @@ const Studio = () => {
                           >
                             <option value="cover">Fill / crop</option>
                             <option value="contain">Fit full video</option>
+                          </select>
+                        </label>
+                        <label>
+                          Rotation
+                          <select
+                            aria-label={`Clip ${index + 1} rotation`}
+                            value={clip.rotation ?? 0}
+                            onChange={(e) =>
+                              editClip(clip.id, {
+                                rotation: Number(
+                                  e.target.value,
+                                ) as Clip["rotation"],
+                              })
+                            }
+                          >
+                            <option value={0}>Original</option>
+                            <option value={90}>90° clockwise</option>
+                            <option value={180}>180°</option>
+                            <option value={270}>90° counterclockwise</option>
                           </select>
                         </label>
                         <label>

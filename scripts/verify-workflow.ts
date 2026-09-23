@@ -45,6 +45,7 @@ const run = async () => {
       end: Math.floor(media.duration * 30) / 30,
       volume: 1,
       fit: "cover",
+      rotation: 0,
       x: 50,
       y: 50,
     },

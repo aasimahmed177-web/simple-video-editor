@@ -31,6 +31,7 @@ const fixture = () => {
       end: 12,
       volume: 1,
       fit: "cover",
+      rotation: 0,
       x: 50,
       y: 50,
     },
@@ -38,6 +39,22 @@ const fixture = () => {
   return p;
 };
 describe("ad editing timeline", () => {
+  it("opens older clips upright as saved and rejects unsupported rotations", () => {
+    const p = fixture();
+    const old = { ...p, clips: [{ ...p.clips[0], rotation: undefined }] };
+    expect(projectSchema.parse(old).clips[0].rotation).toBe(0);
+    for (const rotation of [0, 90, 180, 270])
+      expect(
+        projectSchema.safeParse({ ...p, clips: [{ ...p.clips[0], rotation }] })
+          .success,
+      ).toBe(true);
+    expect(
+      projectSchema.safeParse({
+        ...p,
+        clips: [{ ...p.clips[0], rotation: 45 }],
+      }).success,
+    ).toBe(false);
+  });
   it("defaults older saved projects to 1080p and validates resolution choices", () => {
     const p = fixture();
     const old = { ...p, exportResolution: undefined };
