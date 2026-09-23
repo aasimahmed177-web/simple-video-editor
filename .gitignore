@@ -13,3 +13,10 @@ coverage
 
 # Ignore the output video from Git but not videos you import into src/.
 out
+
+# Local footage, project transcripts, models, and exports never belong in Git.
+data/
+.local/
+public/uploads/
+test-results/
+playwright-report/

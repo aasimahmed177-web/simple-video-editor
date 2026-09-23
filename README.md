@@ -1,4 +1,30 @@
-# Simple ChatGPT + Claude Video Editor
+# Adscade Ad Studio
+
+A local workflow for editing short Meta ad videos: English transcription, subtitle spelling and timing review, reusable Adscade branding, and paired 1:1 / 9:16 MP4 exports.
+
+## Start the ad studio
+
+Requires Node.js 20.19+ (or a supported newer release) and a C++ compiler for the one-time transcription setup.
+
+```bash
+npm install
+npm run setup:transcription
+npm run edit
+```
+
+Open `http://127.0.0.1:5173/ads.html`. On macOS, you can also double-click **Start Adscade Studio.command** after installation.
+
+Import footage → make the cut → transcribe → check spelling and timing → save → export both placements. The bundled Adscade preset uses the live VSL-5-2 logo and green/gold/cream palette; its CTA and caption styling remain editable. No paid AI API or cloud-render service is required.
+
+**[Weekly workflow, backup instructions, verification, and licensing](docs/WORKFLOW.md)**
+
+Footage, transcripts, presets, models, and exports stay in ignored local folders. They are not committed to Git. Save projects explicitly and back up `data/` separately. Software fixes can be committed normally in Git or GitHub Desktop.
+
+## Original composition editor
+
+The original utility is retained at `/editor.html`. Its original documentation follows.
+
+### Simple ChatGPT + Claude Video Editor
 
 An unofficial, local-first visual editor for Remotion compositions. It gives AI-assisted video projects a simple canvas for final visual changes.
 
