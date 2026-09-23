@@ -8,7 +8,7 @@ The English `small.en` model is installed locally by `npm run setup:transcriptio
 
 ## Make an ad
 
-1. Choose **New ad**, name it, and import your video clips. MP4, MOV, WebM, and M4V are accepted (up to 1 GB per file, two hours of source duration).
+1. Choose **New ad**, name it, and import your video clips. MP4, MOV, WebM, and M4V are accepted (up to 5 GB per file, two hours of source duration).
 2. Use **In / Out** to keep the desired section of each clip. Reorder clips with the arrows. Seek in the preview and use **Split here** to divide a clip. Remove unwanted sections. All times are seconds; the output clock is 30 fps.
 3. Preview both **1:1 Feed** and **9:16 Story**. Choose fill/crop or fit the full source, and adjust the focal point with Crop X/Y. The same focal point is used in both versions.
 4. Import an MP3, M4A, or WAV if you want music. Set its level separately from each clip's voice volume. Music loops with a short fade at the start and end. Use music licensed for your advertising use.
@@ -16,9 +16,15 @@ The English `small.en` model is installed locally by `npm run setup:transcriptio
 6. Click **Check spelling**. The local English dictionary offers suggestions; accepted names can go in the brand dictionary. Click a line's play button, listen, edit the wording and start/end times, then mark it **Reviewed**. Automatic transcription can mishear names, numbers, accents, and claims. Dictionary checks cannot verify meaning.
 7. Fix overlapping subtitles or lines above 25 characters per second before export. Changing the cut resets subtitle review; transcribe again or check all timings and choose **Mark all reviewed**. Turning off subtitles is an explicit way to export without them.
 8. Under **Brand & text**, adjust the hook, logo, caption style, and final CTA. **Save as default brand** stores a reusable preset for new ads; **Apply saved brand** updates the current ad. Existing projects retain their own settings.
-9. **Save project**, then **Export both placements**. Downloads include 1080×1080 and 1080×1920 H.264/AAC MP4s, an SRT, and a JSON snapshot of the edit. Subtitles are burned into the video when enabled. Guides and editor controls are never rendered.
+9. **Save project**, choose a resolution (1080p recommended), then **Export both placements**. At the default resolution, downloads include 1080×1080 and 1080×1920 H.264/AAC MP4s, an SRT, and a JSON snapshot of the edit. Subtitles are burned into the video when enabled. Guides and editor controls are never rendered.
 
 The safe-area guide is a conservative working aid, not a guarantee for every Meta placement. Review both files in Ads Manager's placement preview before publishing. The square and vertical outputs share the same cut and subtitles; the crop changes with the canvas. This app does not upload or publish ads.
+
+## Large files
+
+Imports stream the file directly to local disk and show byte progress. Large-resolution videos and footage with audio/video codecs that need conversion get a smaller H.264/AAC editing preview. This one-time preparation can take a few minutes. The preview is used only in the interactive player; transcription and final rendering read the original source. The original file stays untouched; the studio keeps its own copy. Files above 5 GB are rejected before transfer when their size is known, and a streamed byte limit also protects chunked uploads. Interrupted uploads are removed rather than kept as usable media. Imports need space for the source copy plus a small reserve; exports require additional temporary and output space.
+
+Exports process two frames at a time with two video-decoding threads and a 512 MiB decoded-frame cache. That cache limit is not a total RAM limit: the browser, decoder, encoder, and transcription model also use memory. Final output size depends on edited duration, resolution, and image complexity, not just the source file size. The resolution selector is saved with each project. 720p creates 720×720 / 720×1280 files; 1080p creates 1080×1080 / 1080×1920; 2160p creates 2160×2160 / 2160×3840. Choosing a higher resolution does not restore detail absent from the source.
 
 ## Where the work lives
 

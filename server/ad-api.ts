@@ -19,6 +19,7 @@ import {
   makeCancelSignal,
 } from "@remotion/renderer";
 import nspell from "nspell";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "../src/ads/upload";
 import { createRequire } from "node:module";
 import { z } from "zod";
 import {
@@ -171,7 +172,18 @@ const streamFile = (
   stream.pipe(res);
 };
 
-const upload = async (req: IncomingMessage): Promise<Media> => {
+const upload = async (
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<Media> => {
+  const declaredBytes = Number(req.headers["content-length"] ?? 0);
+  if (declaredBytes > MAX_UPLOAD_BYTES)
+    throw new Error(`Maximum file size is ${MAX_UPLOAD_LABEL}`);
+  const disk = await fsp.statfs(folders.media);
+  if (disk.bavail * disk.bsize < declaredBytes + 256_000_000)
+    throw new Error(
+      "Not enough free disk space to import this file. Free some space and try again.",
+    );
   const name = decodeURIComponent(
     String(req.headers["x-file-name"] ?? "video.mp4"),
   ).slice(0, 200);
@@ -181,6 +193,13 @@ const upload = async (req: IncomingMessage): Promise<Media> => {
   const id = randomUUID(),
     file = `${id}${ext}`,
     output = path.join(folders.media, file);
+  const previewFile = `${id}-preview.mp4`;
+  const previewPath = path.join(folders.media, previewFile);
+  const abort = new AbortController();
+  const onClose = () => {
+    if (!res.writableEnded) abort.abort();
+  };
+  res.once("close", onClose);
   let bytes = 0;
   try {
     await pipeline(
@@ -189,8 +208,8 @@ const upload = async (req: IncomingMessage): Promise<Media> => {
         transform(chunk, _encoding, callback) {
           bytes += chunk.length;
           callback(
-            bytes > 1_000_000_000
-              ? new Error("Maximum file size is 1 GB")
+            bytes > MAX_UPLOAD_BYTES
+              ? new Error(`Maximum file size is ${MAX_UPLOAD_LABEL}`)
               : null,
             chunk,
           );
@@ -201,12 +220,13 @@ const upload = async (req: IncomingMessage): Promise<Media> => {
     const { stdout } = await exec(
       ffprobe.path,
       ["-v", "error", "-show_format", "-show_streams", "-of", "json", output],
-      { maxBuffer: 4_000_000 },
+      { maxBuffer: 4_000_000, timeout: 60_000, signal: abort.signal },
     );
     const info = JSON.parse(stdout) as {
       format: { duration: string };
       streams: {
         codec_type: string;
+        codec_name: string;
         width?: number;
         height?: number;
         disposition?: { attached_pic?: number };
@@ -221,6 +241,50 @@ const upload = async (req: IncomingMessage): Promise<Media> => {
     const hasAudio = info.streams.some((s) => s.codec_type === "audio");
     if (!video && !hasAudio)
       throw new Error("This file has no usable video or audio");
+    const audio = info.streams.find((s) => s.codec_type === "audio");
+    const needsPreview =
+      video &&
+      ((video.width ?? 0) > 1920 ||
+        (video.height ?? 0) > 1080 ||
+        !["h264", "vp8", "vp9", "av1"].includes(video.codec_name) ||
+        (audio &&
+          !["aac", "mp3", "opus", "vorbis"].includes(audio.codec_name)));
+    if (needsPreview) {
+      await exec(
+        ffmpeg!,
+        [
+          "-y",
+          "-v",
+          "error",
+          "-i",
+          output,
+          "-map",
+          "0:v:0",
+          "-map",
+          "0:a:0?",
+          "-vf",
+          "scale=1920:1080:force_original_aspect_ratio=decrease:force_divisible_by=2",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "veryfast",
+          "-crf",
+          "23",
+          "-threads",
+          "2",
+          "-pix_fmt",
+          "yuv420p",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "128k",
+          "-movflags",
+          "+faststart",
+          previewPath,
+        ],
+        { signal: abort.signal, maxBuffer: 2_000_000 },
+      );
+    }
     return {
       id,
       file,
@@ -229,11 +293,15 @@ const upload = async (req: IncomingMessage): Promise<Media> => {
       width: video?.width ?? 0,
       height: video?.height ?? 0,
       hasAudio,
+      ...(needsPreview ? { previewFile } : {}),
       kind: video ? "video" : "audio",
     };
   } catch (error) {
     await fsp.rm(output, { force: true });
+    await fsp.rm(previewPath, { force: true });
     throw error;
+  } finally {
+    res.removeListener("close", onClose);
   }
 };
 
@@ -373,7 +441,7 @@ const runExport = async (
         id: format === "square" ? "AdSquare" : "AdVertical",
         inputProps: { project: p, mediaBase },
       });
-      const filename = `${prefix}-${format === "square" ? "1x1" : "9x16"}.mp4`;
+      const filename = `${prefix}-${format === "square" ? "1x1" : "9x16"}-${p.exportResolution}p.mp4`;
       created.push(filename);
       await renderMedia({
         serveUrl,
@@ -383,8 +451,11 @@ const runExport = async (
         audioCodec: "aac",
         pixelFormat: "yuv420p",
         crf: 18,
+        scale: Number(p.exportResolution) / 1080,
         outputLocation: path.join(folders.exports, filename),
         concurrency: 2,
+        offthreadVideoThreads: 2,
+        offthreadVideoCacheSizeInBytes: 512 * 1024 * 1024,
         cancelSignal,
         onProgress: ({ progress }) => {
           job.progress = (i + progress) / requested.length;
@@ -461,7 +532,7 @@ export const adApi = (): Plugin => ({
             jobs: [...jobs.values()].slice(-20),
           });
         if (req.method === "POST" && route === "/upload")
-          return json(res, await upload(req));
+          return json(res, await upload(req, res));
         if (
           (req.method === "GET" || req.method === "HEAD") &&
           route.startsWith("/media/")

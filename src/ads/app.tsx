@@ -20,10 +20,10 @@ import {
   type Caption,
   type Clip,
   type Format,
-  type Media,
   type Project,
 } from "./model";
 import "./studio.css";
+import { MAX_UPLOAD_LABEL, uploadMedia } from "./upload";
 
 type Summary = { id: string; name: string; updatedAt: string };
 type Job = {
@@ -216,19 +216,14 @@ const Studio = () => {
     if (!files?.length) return;
     let next = current.current;
     for (const file of Array.from(files)) {
-      if (file.size > 1_000_000_000)
-        throw new Error(`${file.name} is over the 1 GB limit`);
-      setMessage(`Importing ${file.name}…`);
-      const res = await fetch("/api/ads/upload", {
-        method: "POST",
-        headers: {
-          "x-file-name": encodeURIComponent(file.name),
-          "Content-Type": "application/octet-stream",
-        },
-        body: file,
+      setMessage(`Importing ${file.name} · 0%`);
+      const media = await uploadMedia(file, (fraction) => {
+        setMessage(
+          fraction >= 1
+            ? `Preparing ${file.name} for editing. Large videos may take a few minutes…`
+            : `Importing ${file.name} · ${Math.floor(fraction * 100)}%`,
+        );
       });
-      const media = (await res.json()) as Media & { error?: string };
-      if (!res.ok) throw new Error(media.error);
       const clip: Clip = {
         id: crypto.randomUUID(),
         mediaId: media.id,
@@ -411,7 +406,7 @@ const Studio = () => {
           <label className={`upload-zone ${locked ? "disabled" : ""}`}>
             <span className="upload-icon">↥</span>
             <strong>Import video or music</strong>
-            <span>MP4, MOV, WebM · up to 1 GB</span>
+            <span>MP4, MOV, WebM · up to {MAX_UPLOAD_LABEL}</span>
             <input
               aria-label="Import video or music"
               type="file"
@@ -536,7 +531,7 @@ const Studio = () => {
                   key={`${project.id}-${format}`}
                   ref={player}
                   component={AdComposition}
-                  inputProps={{ project }}
+                  inputProps={{ project, preview: true }}
                   durationInFrames={totalFrames}
                   fps={FPS}
                   compositionWidth={formats[format].width}
@@ -579,7 +574,13 @@ const Studio = () => {
               </span>
             </span>
             <span>
-              {formats[format].width} × {formats[format].height} · 30 fps
+              Export: {project.exportResolution ?? "1080"} ×{" "}
+              {Math.round(
+                (formats[format].height *
+                  Number(project.exportResolution ?? "1080")) /
+                  1080,
+              )}{" "}
+              · 30 fps
             </span>
           </div>
           <section className="cut-panel">
@@ -1289,10 +1290,29 @@ const Studio = () => {
           <span>
             {job?.status === "running"
               ? `${Math.round(job.progress * 100)}% · You can leave this tab open`
-              : "H.264 MP4 · 1080px wide · Captions included when enabled"}
+              : `H.264 MP4 · ${project.exportResolution ?? "1080"}px wide · Captions included when enabled`}
           </span>
         </div>
         <div className="export-actions">
+          <label className="export-resolution">
+            Resolution
+            <select
+              aria-label="Export resolution"
+              disabled={locked}
+              value={project.exportResolution ?? "1080"}
+              onChange={(e) =>
+                update({
+                  ...project,
+                  exportResolution: e.target
+                    .value as Project["exportResolution"],
+                })
+              }
+            >
+              <option value="720">720p · smaller files</option>
+              <option value="1080">1080p · recommended</option>
+              <option value="2160">2160p · 4K vertical</option>
+            </select>
+          </label>
           {job?.status === "running" ? (
             <button
               onClick={() =>
@@ -1368,9 +1388,9 @@ const Studio = () => {
               <strong>Exports ready</strong>
               {job.files.map((file) => (
                 <a href={`/api/ads/download/${file}`} key={file}>
-                  {file.endsWith("-1x1.mp4")
+                  {/-1x1(?:-\d+p)?\.mp4$/.test(file)
                     ? "Download 1:1 video"
-                    : file.endsWith("-9x16.mp4")
+                    : /-9x16(?:-\d+p)?\.mp4$/.test(file)
                       ? "Download 9:16 video"
                       : file.endsWith(".srt")
                         ? "Subtitles (SRT)"

@@ -46,6 +46,10 @@ export const mediaSchema = z.object({
   width: z.number().nonnegative(),
   height: z.number().nonnegative(),
   hasAudio: z.boolean(),
+  previewFile: z
+    .string()
+    .regex(/^[a-zA-Z0-9-]+\.mp4$/)
+    .optional(),
   kind: z.enum(["video", "audio"]),
 });
 export type Media = z.infer<typeof mediaSchema>;
@@ -90,6 +94,7 @@ export const projectSchema = z
     subtitlesEnabled: z.boolean(),
     updatedAt: z.string().max(40),
     timingReviewed: z.boolean().default(true),
+    exportResolution: z.enum(["720", "1080", "2160"]).default("1080"),
   })
   .superRefine((p, ctx) => {
     const issue = (message: string) =>
@@ -142,6 +147,7 @@ export const newProject = (brand = defaultBrand): Project => ({
   subtitlesEnabled: true,
   updatedAt: new Date().toISOString(),
   timingReviewed: true,
+  exportResolution: "1080",
 });
 export const timelineKey = (p: Project) =>
   JSON.stringify(

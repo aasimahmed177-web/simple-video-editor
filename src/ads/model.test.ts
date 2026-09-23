@@ -38,6 +38,23 @@ const fixture = () => {
   return p;
 };
 describe("ad editing timeline", () => {
+  it("defaults older saved projects to 1080p and validates resolution choices", () => {
+    const p = fixture();
+    const old = { ...p, exportResolution: undefined };
+    expect(projectSchema.parse(old).exportResolution).toBe("1080");
+    for (const resolution of ["720", "1080", "2160"])
+      expect(
+        projectSchema.safeParse({ ...p, exportResolution: resolution }).success,
+      ).toBe(true);
+    expect(
+      projectSchema.safeParse({ ...p, exportResolution: "4000" }).success,
+    ).toBe(false);
+  });
+  it("rejects preview paths that escape the media folder", () => {
+    const p = fixture();
+    p.media[0].previewFile = "../outside.mp4";
+    expect(projectSchema.safeParse(p).success).toBe(false);
+  });
   it("quantizes source in/out points consistently so subtitles and video share a clock", () => {
     const p = fixture();
     p.clips[0].start = 0.018;

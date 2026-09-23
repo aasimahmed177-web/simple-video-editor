@@ -19,6 +19,7 @@ const emptyProject: Project = {
   subtitlesEnabled: true,
   updatedAt: "",
   timingReviewed: true,
+  exportResolution: "1080",
 };
 
 export const RemotionRoot: React.FC = () => {

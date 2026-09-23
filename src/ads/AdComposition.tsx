@@ -11,10 +11,15 @@ import {
 import { clipFrames, type Project } from "./model";
 import "./fonts.css";
 
-export type AdProps = { project: Project; mediaBase?: string };
+export type AdProps = {
+  project: Project;
+  mediaBase?: string;
+  preview?: boolean;
+};
 export const AdComposition: React.FC<AdProps> = ({
   project,
   mediaBase = "",
+  preview = false,
 }) => {
   const frame = useCurrentFrame();
   const { fps, height, durationInFrames } = useVideoConfig();
@@ -24,8 +29,10 @@ export const AdComposition: React.FC<AdProps> = ({
     ? project.captions.find((c) => time >= c.start && time < c.end)
     : undefined;
   let offset = 0;
-  const mediaUrl = (id: string) =>
-    `${mediaBase}/api/ads/media/${project.media.find((m) => m.id === id)!.file}`;
+  const mediaUrl = (id: string) => {
+    const media = project.media.find((m) => m.id === id)!;
+    return `${mediaBase}/api/ads/media/${preview && media.previewFile ? media.previewFile : media.file}`;
+  };
   const ctaVisible =
     brand.cta &&
     brand.ctaSeconds > 0 &&

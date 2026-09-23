@@ -992,3 +992,32 @@ small {
     transition: none !important;
   }
 }
+
+.export-resolution {
+  font-size: 10px;
+  gap: 4px;
+  min-width: 170px;
+}
+.export-resolution select {
+  font-size: 12px;
+  padding: 8px;
+}
+.export-actions {
+  align-items: center;
+  flex-wrap: wrap;
+}
+@media (max-width: 560px) {
+  .export-resolution {
+    width: 100%;
+  }
+  .export-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .export-resolution {
+    grid-column: 1 / -1;
+  }
+  .notifications {
+    bottom: 140px;
+  }
+}
