@@ -33,7 +33,7 @@ export const defaultBrand: Brand = {
   captionSize: 48,
   captionBottom: 24,
   captionBackground: true,
-  showLogo: true,
+  showLogo: false,
   cta: "Book a discovery call",
   ctaSeconds: 3,
   dictionary: ["Adscade", "Meta", "Instagram", "CTA", "ROAS", "VSL"],
